@@ -1,0 +1,19 @@
+String filename = children[i].toString();
+                    System.out.println(filename);
+
+                    BufferedReader lecteurAvecBuffer = null;
+                    String ligne;
+
+                    try
+                    {
+                        lecteurAvecBuffer = new BufferedReader(new InputStreamReader(
+                               new FileInputStream(children[i]), "UTF-8"));
+                    }
+                    catch(FileNotFoundException exc)
+                    {
+                        System.out.println("Erreur d'ouverture");
+                    }
+                    while ((ligne = lecteurAvecBuffer.readLine()) != null){
+                        System.out.println(ligne);
+                    }
+                    lecteurAvecBuffer.close();
