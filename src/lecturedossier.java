@@ -6,12 +6,10 @@ import javax.mail.internet.MimeMultipart;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 
 /* Created by dania on 17/11/16.
@@ -19,6 +17,9 @@ import java.util.regex.Pattern;
 public class lecturedossier {
 
     public static void main(String args[]){
+        ArrayList<String> listSpam = new ArrayList<>();
+        ArrayList<String> listOk = new ArrayList<>();
+
         Dico unDico =  new Dico();
         try{
             File dir = new File("/home/dania/Documents/EML_a_trier");
@@ -30,7 +31,7 @@ public class lecturedossier {
                 Map<String,Integer> reference = unDico.vecteur;
                 Map<String, Map<String,Integer>> vecteurs = new HashMap<>();
 
-                for (int i=0; i < dir.listFiles().length && i<1;i++) {
+                for (int i=0; i < dir.listFiles().length && i<15;i++) {
                     //Parametrage du mail
                     Properties props = System.getProperties();
                     props.put("mail.host", "smtp.dummydomain.com");
@@ -56,20 +57,26 @@ public class lecturedossier {
                         }
                         vecteurcourant.put(mot,count);
                     }
-                    double res = scalarProduct(reference, vecteurcourant) / norme(reference) * norme(vecteurcourant);
-                   System.out.println(res);
                     vecteurs.put(children[i].toString(),vecteurcourant);
-
                 }
-                System.out.println(vecteurs);
+                //System.out.println(vecteurs);
+                for(Map.Entry<String, Map<String, Integer>> vecteur : vecteurs.entrySet()) {
+                    double cos = Calcul.scalarProduct(reference, vecteur.getValue()) / Calcul.norme(reference) * Calcul.norme(vecteur.getValue());
+                    System.out.println(cos);
+                    System.out.println(vecteur.getKey());
+                    if (cos < 0.8) {
+                        listSpam.add(vecteur.getKey());
+                        System.out.println("Spam");
+                    }else{
+                        listOk.add(vecteur.getKey());
+                        System.out.println("Ok");
+                    }
+                }
 
             }
         } catch (Exception ioe){
             ioe.printStackTrace();
         }
-        //SOmme des count au carré puis la racine sur cette somme
-
-
     }
 
     private static String getNoteBody(Message message) throws Exception {
@@ -87,23 +94,6 @@ public class lecturedossier {
             }
         }
         return "";
-    }
-    public static double norme(Map<String, Integer> vector) {
-        int result = 0;
-
-        for (Map.Entry<String, Integer> entry : vector.entrySet()) {
-            result += entry.getValue() * entry.getValue();
-        }
-
-        return Math.sqrt(result);
-    }
-    public static Integer scalarProduct(Map<String, Integer> reference, Map<String, Integer> vector){
-        int produitscalaire = 0;
-
-        for(Map.Entry<String, Integer> element : reference.entrySet()){
-            produitscalaire += vector.get(element.getKey())* element.getValue();
-        }
-        return produitscalaire;
     }
 
 
