@@ -3,13 +3,11 @@ import javax.mail.Message;
 import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import org.jsoup.Jsoup;
 
 
 /* Created by dania on 17/11/16.
@@ -31,7 +29,7 @@ public class lecturedossier {
                 Map<String,Integer> reference = unDico.vecteur;
                 Map<String, Map<String,Integer>> vecteurs = new HashMap<>();
 
-                for (int i=0; i < dir.listFiles().length && i<15;i++) {
+                for (int i=0; i < dir.listFiles().length;i++) {
                     //Parametrage du mail
                     Properties props = System.getProperties();
                     props.put("mail.host", "smtp.dummydomain.com");
@@ -40,17 +38,17 @@ public class lecturedossier {
                     InputStream source = new FileInputStream(children[i]);
                     MimeMessage message = new MimeMessage(mailSession, source);
                     //Récuperation du contenu
-                    String contenu = getNoteBody(message).toLowerCase();
+                    String contenu = getTextFromMessage(message).toLowerCase();
 
                     //Traitement
                     Map<String,Integer> vecteurcourant = new HashMap<>();
-                    int produitscalaire = 0;
+
                     for(Map.Entry<String, Integer> element : reference.entrySet()){
 
                         String mot = element.getKey();
                         Pattern pattern = Pattern.compile(mot);
-
                         Matcher matcher = pattern.matcher(contenu);
+
                         int count = 0;
                         while (matcher.find()){
                             count++;
@@ -58,25 +56,36 @@ public class lecturedossier {
                         vecteurcourant.put(mot,count);
                     }
                     vecteurs.put(children[i].toString(),vecteurcourant);
+
                 }
-                //System.out.println(vecteurs);
+                int k =0;
                 for(Map.Entry<String, Map<String, Integer>> vecteur : vecteurs.entrySet()) {
-                    double cos = Calcul.scalarProduct(reference, vecteur.getValue()) / Calcul.norme(reference) * Calcul.norme(vecteur.getValue());
+                    double scalarproduct = Calcul.scalarProduct(reference, vecteur.getValue());
+                    double cos =0;
+                    if (scalarproduct>0.0){
+                        cos = scalarproduct / (Calcul.norme(reference) * Calcul.norme(vecteur.getValue()));
+                    }
                     System.out.println(cos);
                     System.out.println(vecteur.getKey());
-                    if (cos < 0.8) {
+                    if (cos < 0.52) {
                         listSpam.add(vecteur.getKey());
                         System.out.println("Spam");
                     }else{
                         listOk.add(vecteur.getKey());
                         System.out.println("Ok");
                     }
+                    System.out.println(k);
+                    k++;
+
                 }
 
             }
         } catch (Exception ioe){
             ioe.printStackTrace();
         }
+
+        insertCsv(listOk,true);
+        insertCsv(listSpam,false);
     }
 
     private static String getNoteBody(Message message) throws Exception {
@@ -95,6 +104,67 @@ public class lecturedossier {
         }
         return "";
     }
+    private static String getTextFromMessage(Message message) throws Exception {
+        String result = "";
+        if (message.isMimeType("text/plain")) {
+            result = message.getContent().toString();
+        } else if (message.isMimeType("multipart/*")) {
+            MimeMultipart mimeMultipart = (MimeMultipart) message.getContent();
+            result = getTextFromMimeMultipart(mimeMultipart);
+        }
+        return result;
+    }
 
+    private static String getTextFromMimeMultipart(
+            MimeMultipart mimeMultipart) throws Exception{
+        String result = "";
+        int count = mimeMultipart.getCount();
+        for (int i = 0; i < count; i++) {
+            BodyPart bodyPart = mimeMultipart.getBodyPart(i);
+            if (bodyPart.isMimeType("text/plain")) {
+                result = result + "\n" + bodyPart.getContent();
+                break; // without break same text appears twice in my tests
+            } else if (bodyPart.isMimeType("text/html")) {
+                String html = (String) bodyPart.getContent();
+                result = result + "\n" + org.jsoup.Jsoup.parse(html).text();
+            } else if (bodyPart.getContent() instanceof MimeMultipart){
+                result = result + getTextFromMimeMultipart((MimeMultipart)bodyPart.getContent());
+            }
+        }
+        return result;
+    }
 
+    public static void insertCsv (ArrayList<String> list, boolean ok){
+        FileWriter fileWriter = null;
+        String wording = "listOk";
+        if(!ok){
+            wording = "listSpam";
+        }
+
+        try {
+            fileWriter = new FileWriter("/home/dania/Documents/"+ wording +".csv");
+
+            for (String nomFichier : list) {
+                fileWriter.append(nomFichier);
+                fileWriter.append("\n");
+            }
+
+            System.out.println("CSV file was created successfully !!!");
+
+        } catch (Exception e) {
+            System.out.println("Error in CsvFileWriter !!!");
+            e.printStackTrace();
+        } finally {
+
+            try {
+                fileWriter.flush();
+                fileWriter.close();
+            } catch (IOException e) {
+                System.out.println("Error while flushing/closing fileWriter !!!");
+                e.printStackTrace();
+            }
+
+        }
+
+    }
 }

@@ -13,7 +13,8 @@ public class Calcul {
 
         return Math.sqrt(result);
     }
-    public static Integer scalarProduct(Map<String, Integer> reference, Map<String, Integer> vector){
+    public static double scalarProduct(Map<String, Integer> reference, Map<String, Integer> vector){
+        //System.out.println(vector);
         int produitscalaire = 0;
 
         for(Map.Entry<String, Integer> element : reference.entrySet()){
